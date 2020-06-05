@@ -38,9 +38,7 @@ def split_info(data):
     return to_numpy(context, question, answer_text, answer_start)
 
 
-squad_data, info = tfds.load(
-    "squad", data_dir=CWD, with_info=True
-)  # change datadir to $WORK
+squad_data, info = tfds.load("squad", data_dir=CWD, with_info=True)
 squad_train = squad_data["train"]
 squad_validation = squad_data["validation"]
 print(info.features)
@@ -50,32 +48,26 @@ context_val, question_val, answer_text_val, answer_start_val = split_info(
     squad_validation
 )
 
-# tokenizing
-padding_type = "post"  # padding zero to the end of vector
-oov_token = "<OOV>"  # out of vocabulary
+padding_type = "post"
+oov_token = "<OOV>"
 
 tokenizer = Tokenizer(oov_token=oov_token)
 tokenizer.fit_on_texts(context_tr)
-word_index = tokenizer.word_index  # This will be our dictionary of all the words.
+word_index = tokenizer.word_index
 num_words = len(word_index.keys())
 print("{:30s}: {}".format("Total number of words", num_words))
 
-# change the context vectors into integer vectors and padding them.
 sequences = tokenizer.texts_to_sequences(context_tr)
 con_len = max(map(len, sequences))
-print("max length of a context vector is {}".format(con_len))
+print("Max length of a context vector: {}".format(con_len))
 context_padded = pad_sequences(sequences, maxlen=con_len, padding=padding_type)
 
-# change the question vectors into integer vectors and padding them.
 sequences = tokenizer.texts_to_sequences(question_tr)
 que_len = max(map(len, sequences))
-print("max length of a question vector is {}".format(que_len))
+print("Max length of a question vector: {}".format(que_len))
 question_padded = pad_sequences(sequences, maxlen=que_len, padding=padding_type)
 
-# change the answer vectors into integer vectors
 answer_token = tokenizer.texts_to_sequences(answer_text_tr)
-
-### We can do th same process for the validation vectors.
 
 sequences_val = tokenizer.texts_to_sequences(context_val)
 context_val_padded = pad_sequences(sequences, maxlen=con_len, padding=padding_type)
@@ -83,7 +75,7 @@ sequences_val = tokenizer.texts_to_sequences(question_val)
 question_val_padded = pad_sequences(sequences, maxlen=que_len, padding=padding_type)
 answer_token_val = tokenizer.texts_to_sequences(answer_text_val)
 
-y_train_i = []  # This list contains tuples of length two, (start,end), for the answers.
+y_train_i = []  # (start, end)
 selected_i = []
 WINDOW = 10
 
@@ -106,7 +98,9 @@ question_padded_clean = question_padded[selected_i]
 answer_text_clean = answer_text_tr[selected_i]
 
 num_train_data = context_padded_clean.shape[0]
-print("number of training samples after cleaning is = {}".format(num_train_data))
+print(
+    "Number of samples in training set after preprocessing: {}".format(num_train_data)
+)
 
 y_train = []
 
@@ -133,7 +127,8 @@ for word, i in word_index.items():
         embeddings_mat[i] = emb
 
 units = 128
-emb_dim = 50  # glove 50
+emb_dim = 50
+
 # Functional model
 context_input = Input(shape=(con_len,))
 context_emb = Embedding(num_words, embeddings_mat, emb_dim)(context_input)
@@ -169,15 +164,9 @@ filepath = "epochs_{epoch:03d}"
 checkpoint = ModelCheckpoint(filepath, save_weights_only=True)
 callbacks_list = [checkpoint]
 
-### Here we load the file of the already completed epochs, for example for epoch 10.
-# model.load_weights('/content/drive/My Drive/epochs:010')
 
-# model.fit([question_padded_, context_padded_], y_train_, epochs=num_epochs)
-
-num_epochs = 15
-last_checked_epoch = (
-    0  # You must change this number if you are loading data from previous epcochs.
-)
+num_epochs = 1000
+last_checked_epoch = 0
 
 history = model.fit(
     train_dataset,

@@ -17,7 +17,6 @@ class Custom_Accuracy(tf.keras.metrics.Metric):
 
         y_1 = y_pred[:, : len_ // 2]
         y_2 = y_pred[:, len_ // 2 :]
-        # the predicted labels are the ones with the highest probability.
         y_1 = tf.reshape(tf.argmax(y_1, axis=1), shape=(-1, 1))
         y_2 = tf.reshape(tf.argmax(y_2, axis=1), shape=(-1, 1))
 
