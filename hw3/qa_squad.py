@@ -143,9 +143,9 @@ y_prob = BiLinear_Layer(2 * units, que_len)(context_lstm, question_lstm)
 model = Model(inputs=[context_input, question_input], outputs=y_prob)
 model.summary()
 
-context_padded_ = np.array(context_padded_clean)[:1000]
-question_padded_ = np.array(question_padded_clean)[:1000]
-y_train_ = np.array(y_train)[:1000]
+context_padded_ = np.array(context_padded_clean)
+question_padded_ = np.array(question_padded_clean)
+y_train_ = np.array(y_train)
 
 train_dataset = tf.data.Dataset.from_tensor_slices(
     ({"input_1": context_padded_, "input_2": question_padded_}, y_train_)
