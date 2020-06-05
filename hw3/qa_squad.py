@@ -105,8 +105,8 @@ print(
 y_train = []
 
 for i in range(len(context_padded_clean)):
-    s = np.zeros(con_len, dtype="int8")
-    e = np.zeros(con_len, dtype="int8")
+    s = np.zeros(con_len, dtype="float32")
+    e = np.zeros(con_len, dtype="float32")
 
     s[y_train_i[i][0]] = 1
     e[y_train_i[i][1]] = 1
