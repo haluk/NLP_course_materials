@@ -154,6 +154,11 @@ BATCH_SIZE = 128
 
 train_dataset = train_dataset.batch(BATCH_SIZE)
 
+utils.con_len = con_len
+model.compile(
+    optimizer="adam", loss=utils.loss, metrics=[utils.Custom_Accuracy(num_train_data)]
+)
+
 filepath = "epochs_{epoch:03d}"
 checkpoint = ModelCheckpoint(filepath, save_weights_only=True)
 callbacks_list = [checkpoint]
@@ -162,11 +167,6 @@ model.load_weights("epochs_1000")
 
 num_epochs = 1500
 init_epoch = 1000
-
-utils.con_len = con_len
-model.compile(
-    optimizer="adam", loss=utils.loss, metrics=[utils.Custom_Accuracy(num_train_data)]
-)
 
 history = model.fit(
     train_dataset,
