@@ -163,7 +163,7 @@ filepath = "epochs_{epoch:03d}"
 checkpoint = ModelCheckpoint(filepath, save_weights_only=True)
 callbacks_list = [checkpoint]
 
-model.load_weights("epochs:1000")
+model.load_weights("epochs_1000")
 
 num_epochs = 1500
 init_epoch = 1000
