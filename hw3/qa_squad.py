@@ -6,14 +6,13 @@ import contractions
 import numpy as np
 import tensorflow as tf
 import tensorflow_datasets as tfds
+import utils
+from layers import *
 from tensorflow.keras.callbacks import *
 from tensorflow.keras.layers import LSTM, Bidirectional, Dense, Input
 from tensorflow.keras.models import Model
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.preprocessing.text import Tokenizer
-
-import utils
-from layers import *
 
 CWD = Path.cwd().as_posix()
 
@@ -164,13 +163,14 @@ filepath = "epochs_{epoch:03d}"
 checkpoint = ModelCheckpoint(filepath, save_weights_only=True)
 callbacks_list = [checkpoint]
 
+model.load_weights("epochs:1000")
 
-num_epochs = 1000
-last_checked_epoch = 0
+num_epochs = 1500
+init_epoch = 1000
 
 history = model.fit(
     train_dataset,
-    initial_epoch=last_checked_epoch,
+    initial_epoch=init_epoch,
     epochs=num_epochs,
     callbacks=callbacks_list,
 )
