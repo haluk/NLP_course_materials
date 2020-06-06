@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 import tensorflow as tf
 import tensorflow_datasets as tfds
+from sklearn.utils import shuffle
 from tensorflow.keras.callbacks import *
 from tensorflow.keras.layers import LSTM, Bidirectional, Dense, Input
 from tensorflow.keras.models import Model
@@ -108,13 +109,22 @@ model.compile(
     metrics=[arch_utils.Custom_Accuracy(num_train_data)],
 )
 
-context_padded_jupyter = context_padded_clean[:1000]
-question_padded_jupyter = question_padded_clean[:1000]
-y_train_jupyter = y_train[:1000]
+context_padded_clean, question_padded_clean, y_train = shuffle(
+    context_padded_clean, question_padded_clean, y_train
+)
 
-# model.load_weights("epochs_1000")
-init_epoch = 0
-num_epochs = 2
+tr_size = int(0.8 * context_padded_clean.shape[0])
+
+context_padded_clean_tr = context_padded_clean[:tr_size]
+context_padded_clean_val = context_padded_clean[tr_size:]
+question_padded_clean_tr = question_padded_clean[:tr_size]
+question_padded_clean_val = question_padded_clean[tr_size:]
+y_train_tr = y_train[:tr_size]
+y_train_val = y_train[tr_size:]
+
+model.load_weights("epochs_1500")
+init_epoch = 1500
+num_epochs = 2500
 batch_size = 128
 
 # early stopping will depend on the validation loss
@@ -129,8 +139,8 @@ checkpoint = ModelCheckpoint(filepath, save_weights_only=True)
 callbacks = [earlystopping, checkpoint]
 
 history = model.fit(
-    x=[context_padded_jupyter, question_padded_jupyter],
-    y=y_train_jupyter,
+    x=[context_padded_clean_tr, question_padded_clean_tr],
+    y=y_train_tr,
     # keep 10% of the training data for validation
     validation_split=0.1,
     initial_epoch=init_epoch,
@@ -153,14 +163,10 @@ print(
 )
 
 # Testing
-context_padded_test_jupyter = context_padded_clean[1000:2000]
-question_padded_test_jupyter = question_padded_clean[1000:2000]
-y_test_jupyter = y_train[1000:2000]
-
 print("\nTesting...")
 model.evaluate(
-    [context_padded_test_jupyter, question_padded_test_jupyter],
-    y_test_jupyter,
+    [context_padded_clean_val, question_padded_clean_val],
+    y_train_val,
     batch_size=batch_size,
     verbose=1,
 )
