@@ -2,50 +2,27 @@
 
 from pathlib import Path
 
-import contractions
 import numpy as np
 import tensorflow as tf
 import tensorflow_datasets as tfds
-import utils
-from layers import *
 from tensorflow.keras.callbacks import *
 from tensorflow.keras.layers import LSTM, Bidirectional, Dense, Input
 from tensorflow.keras.models import Model
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.preprocessing.text import Tokenizer
 
+import arch_utils
+import utils
+from layers import *
+
 CWD = Path.cwd().as_posix()
-
-
-def split_info(data):
-    def to_numpy(*args):
-        return [np.array(lst) for lst in args]
-
-    context = []
-    question = []
-    answer_text = []
-    answer_start = []
-
-    for q in data:
-        context.append(contractions.fix(q["context"].numpy().decode("UTF-8")))
-        question.append(contractions.fix(q["question"].numpy().decode("UTF-8")))
-        answer_text.append(
-            contractions.fix(q["answers"]["text"].numpy()[0].decode("UTF-8"))
-        )
-        answer_start.append(q["answers"]["answer_start"].numpy()[0])
-
-    return to_numpy(context, question, answer_text, answer_start)
-
 
 squad_data, info = tfds.load("squad", data_dir=CWD, with_info=True)
 squad_train = squad_data["train"]
 squad_validation = squad_data["validation"]
 print(info.features)
 
-context_tr, question_tr, answer_text_tr, answer_start_tr = split_info(squad_train)
-context_val, question_val, answer_text_val, answer_start_val = split_info(
-    squad_validation
-)
+context_tr, question_tr, answer_text_tr, answer_start_tr = utils.split_info(squad_train)
 
 padding_type = "post"
 oov_token = "<OOV>"
@@ -54,28 +31,22 @@ tokenizer = Tokenizer(oov_token=oov_token)
 tokenizer.fit_on_texts(context_tr)
 word_index = tokenizer.word_index
 num_words = len(word_index.keys())
-print("{:30s}: {}".format("Total number of words", num_words))
+print("{:50s}: {}".format("Total number of words", num_words))
 
 sequences = tokenizer.texts_to_sequences(context_tr)
-con_len = max(map(len, sequences))
-print("Max length of a context vector: {}".format(con_len))
-context_padded = pad_sequences(sequences, maxlen=con_len, padding=padding_type)
+context_len = max(map(len, sequences))
+print("{:50s}: {}".format("Max length of a context vector", context_len))
+context_padded = pad_sequences(sequences, maxlen=context_len, padding=padding_type)
 
 sequences = tokenizer.texts_to_sequences(question_tr)
-que_len = max(map(len, sequences))
-print("Max length of a question vector: {}".format(que_len))
-question_padded = pad_sequences(sequences, maxlen=que_len, padding=padding_type)
+question_len = max(map(len, sequences))
+print("{:50s}: {}".format("Max length of a question vector", question_len))
+question_padded = pad_sequences(sequences, maxlen=question_len, padding=padding_type)
 
 answer_token = tokenizer.texts_to_sequences(answer_text_tr)
 
-sequences_val = tokenizer.texts_to_sequences(context_val)
-context_val_padded = pad_sequences(sequences, maxlen=con_len, padding=padding_type)
-sequences_val = tokenizer.texts_to_sequences(question_val)
-question_val_padded = pad_sequences(sequences, maxlen=que_len, padding=padding_type)
-answer_token_val = tokenizer.texts_to_sequences(answer_text_val)
-
-y_train_i = []  # (start, end)
-selected_i = []
+y_train_tup = []  # (start,end)
+selected = []  # contexts which contain exact answer
 WINDOW = 10
 
 for i in range(len(answer_start_tr)):
@@ -88,89 +59,108 @@ for i in range(len(answer_start_tr)):
         if np.array_equal(context_padded[i][j : j + answer_len], answer_token[i]):
             start = j
             end = j + answer_len - 1
-            y_train_i.append((start, end))
-            selected_i.append(i)
+            y_train_tup.append((start, end))
+            selected.append(i)
             break
 
-context_padded_clean = context_padded[selected_i]
-question_padded_clean = question_padded[selected_i]
-answer_text_clean = answer_text_tr[selected_i]
+context_padded_clean = context_padded[selected]
+question_padded_clean = question_padded[selected]
+answer_text_clean = answer_text_tr[selected]
 
 num_train_data = context_padded_clean.shape[0]
-print(
-    "Number of samples in training set after preprocessing: {}".format(num_train_data)
-)
+print("{:50s}: {}".format("Number of training samples after cleaning", num_train_data))
 
 y_train = []
-
 for i in range(len(context_padded_clean)):
-    s = np.zeros(con_len, dtype="float32")
-    e = np.zeros(con_len, dtype="float32")
+    s = np.zeros(context_len, dtype="float32")
+    e = np.zeros(context_len, dtype="float32")
 
-    s[y_train_i[i][0]] = 1
-    e[y_train_i[i][1]] = 1
+    s[y_train_tup[i][0]] = 1
+    e[y_train_tup[i][1]] = 1
 
     y_train.append(np.concatenate((s, e)))
+y_train = np.array(y_train)
 
-embeddings = {}
-
-with open("glove.6B.50d.txt") as fd:
-    for line in fd:
-        line = line.strip().split()
-        embeddings[line[0]] = np.asarray(line[1:], dtype="float32")
-
-embeddings_mat = np.zeros((num_words + 1, 50))
-for word, i in word_index.items():
-    emb = embeddings.get(word)
-    if emb is not None:
-        embeddings_mat[i] = emb
-
-units = 128
-emb_dim = 50
+emb_dim = 50  # glove.6B.50d
+embeddings_mat = arch_utils.load_embeddings(
+    "glove.6B.50d.txt", num_words, emb_dim, word_index
+)
 
 # Functional model
-context_input = Input(shape=(con_len,))
+units = 128
+context_input = Input(shape=(context_len,))
 context_emb = Embedding(num_words, embeddings_mat, emb_dim)(context_input)
 context_lstm = BiLSTM(units)(context_emb)
 
-question_input = Input(shape=(que_len,))
+question_input = Input(shape=(question_len,))
 question_emb = Embedding(num_words, embeddings_mat, emb_dim)(question_input)
 question_lstm = BiLSTM(units)(question_emb)
 
-y_prob = BiLinear_Layer(2 * units, que_len)(context_lstm, question_lstm)
+y_prob = BiLinear_Layer(2 * units, question_len)(context_lstm, question_lstm)
 
 model = Model(inputs=[context_input, question_input], outputs=y_prob)
 model.summary()
 
-context_padded_ = np.array(context_padded_clean)
-question_padded_ = np.array(question_padded_clean)
-y_train_ = np.array(y_train)
-
-train_dataset = tf.data.Dataset.from_tensor_slices(
-    ({"input_1": context_padded_, "input_2": question_padded_}, y_train_)
-)
-
-BATCH_SIZE = 128
-
-train_dataset = train_dataset.batch(BATCH_SIZE)
-
-utils.con_len = con_len
+optimizer = tf.keras.optimizers.Adam(lr=1e-3)
 model.compile(
-    optimizer="adam", loss=utils.loss, metrics=[utils.Custom_Accuracy(num_train_data)]
+    optimizer=optimizer,
+    loss=arch_utils.loss,
+    metrics=[arch_utils.Custom_Accuracy(num_train_data)],
 )
+
+context_padded_jupyter = context_padded_clean[:1000]
+question_padded_jupyter = question_padded_clean[:1000]
+y_train_jupyter = y_train[:1000]
+
+# model.load_weights("epochs_1000")
+init_epoch = 0
+num_epochs = 2
+batch_size = 128
+
+# early stopping will depend on the validation loss
+# patience parameter determines how many epochs with no improvement
+# in validation loss will be tolerated
+# before training is terminated.
+earlystopping = EarlyStopping(monitor="val_loss", patience=2)
 
 filepath = "epochs_{epoch:03d}"
 checkpoint = ModelCheckpoint(filepath, save_weights_only=True)
-callbacks_list = [checkpoint]
 
-model.load_weights("epochs_1000")
-
-num_epochs = 1500
-init_epoch = 1000
+callbacks = [earlystopping, checkpoint]
 
 history = model.fit(
-    train_dataset,
+    x=[context_padded_jupyter, question_padded_jupyter],
+    y=y_train_jupyter,
+    # keep 10% of the training data for validation
+    validation_split=0.1,
     initial_epoch=init_epoch,
     epochs=num_epochs,
-    callbacks=callbacks_list,
+    callbacks=callbacks,
+    verbose=2,  # Logs once per epoch.
+    batch_size=batch_size,
+    # Our neural network will be trained
+    # with stochastic (mini-batch) gradient descent.
+    # It is important that we shuffle our input.
+    shuffle=True,  # set to True by default
+)
+
+# Print training history
+history = history.history
+print(
+    "\nValidation accuracy: {acc}, loss: {loss}".format(
+        acc=history["val_custom_accuracy"][-1], loss=history["val_loss"][-1]
+    )
+)
+
+# Testing
+context_padded_test_jupyter = context_padded_clean[1000:2000]
+question_padded_test_jupyter = question_padded_clean[1000:2000]
+y_test_jupyter = y_train[1000:2000]
+
+print("\nTesting...")
+model.evaluate(
+    [context_padded_test_jupyter, question_padded_test_jupyter],
+    y_test_jupyter,
+    batch_size=batch_size,
+    verbose=1,
 )
