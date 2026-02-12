@@ -1,0 +1,22 @@
+[project]
+name = "nlp"
+version = "0.0.1"
+description = "Jupyter notebooks for NLP course materials"
+authors = [{ name = "Haluk Dogan", email = "hlk.dogn@gmail.com" }]
+readme = "README.md"
+keywords = ['python']
+requires-python = ">=3.12,<3.14"
+classifiers = [
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+dependencies = [
+    "jupyterlab",
+    "numpy",
+    "scikit-learn",
+    "spacy",
+]
