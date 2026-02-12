@@ -51,7 +51,13 @@ make clean
 ## Project structure
 
 .
-├── notebooks/
-├── pyproject.toml
+├── hw1
+├── hw2
+├── hw3
+├── hw4
 ├── Makefile
-└── README.md
+├── pyproject.toml
+├── README.md
+└── uv.lock
+
+5 directories, 4 files
