@@ -50,6 +50,7 @@ make clean
 
 ## Project structure
 
+```
 .
 ├── hw1
 ├── hw2
@@ -61,3 +62,4 @@ make clean
 └── uv.lock
 
 5 directories, 4 files
+```
