@@ -8,7 +8,9 @@ import spacy
 from bs4 import BeautifulSoup
 from nltk.tokenize.toktok import ToktokTokenizer
 
-nlp = spacy.load("en_core_web_sm")
+nltk.download("stopwords")
+
+nlp = spacy.load("en_core_web_sm-3.8.0")
 tokenizer = ToktokTokenizer()
 stopword_list = nltk.corpus.stopwords.words("english")
 

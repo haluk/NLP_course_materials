@@ -19,4 +19,9 @@ dependencies = [
     "numpy",
     "scikit-learn",
     "spacy",
+    "matplotlib",
+    "tensorflow",
+    "contractions",
+    "nltk",
+    "beautifulsoup4",
 ]
