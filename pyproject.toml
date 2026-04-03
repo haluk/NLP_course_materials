@@ -21,6 +21,8 @@ dependencies = [
     "spacy",
     "matplotlib",
     "tensorflow",
+    "tensorflow_datasets",
+    "importlib-resources",
     "contractions",
     "nltk",
     "beautifulsoup4",
